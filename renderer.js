@@ -656,33 +656,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   const catBar = document.getElementById('categoryBar');
   // Bouton "Tout"
-  const btnAll = document.createElement('button');
-  btnAll.textContent = 'Tout';
-  btnAll.className = 'apps-mode-btn active';
-  let isLoadingApps = false;
-  btnAll.onclick = async () => {
-    // Fermer la vue détaillée si ouverte
-    if (appDetailsSection) appDetailsSection.hidden = true;
-    document.body.classList.remove('details-mode');
-    if (appsDiv) appsDiv.hidden = false;
-    state.currentDetailsApp = null;
-    btnAll.classList.add('active');
-    btnCat.classList.remove('active');
-    catBar.innerHTML = '';
-    if (!Array.isArray(state.allApps) || (state.allApps.length === 0 && !isLoadingApps)) {
-      isLoadingApps = true;
-      setAppList([]);
-      showToast('Chargement des applications…');
-      await loadApps();
-      isLoadingApps = false;
-    }
-    if (Array.isArray(state.allApps) && state.allApps.length > 0) {
-      setAppList(state.allApps);
-      showToast(`Toutes les applications : ${state.allApps.length}`);
-    } else {
-      showToast('Aucune application trouvée.');
-    }
-  };
   // Bouton "Catégories"
   let categoriesCache = null;
   const btnCat = document.createElement('button');
@@ -717,8 +690,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.remove('details-mode');
     if (appsDiv) appsDiv.hidden = false;
     state.currentDetailsApp = null;
-    btnCat.classList.add('active');
-    btnAll.classList.remove('active');
+  btnCat.classList.add('active');
+  // plus de btnAll à désactiver
   catBar.innerHTML = '';
     setAppList([]); // Vide la liste tant qu'aucune catégorie n'est sélectionnée
     const categories = await loadCategories();
@@ -776,18 +749,40 @@ window.addEventListener('DOMContentLoaded', async () => {
       catBar.appendChild(btnOther);
     }
   };
-  appsModeBar.appendChild(btnAll);
   appsModeBar.appendChild(btnCat);
-  // Par défaut, affiche tout
-  btnAll.click();
+  // Par défaut, affiche tout via l'onglet Applications
+  const tabApplications = document.querySelector('.tab[data-category="all"]');
+  if (tabApplications) tabApplications.click();
 
   // (Suppression du masquage automatique de catBar sur changement d’onglet)
   updateAppsModeBarVisibility();
 
   // Sur changement d’onglet, mettre à jour la visibilité
   tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
+    tab.addEventListener('click', async () => {
       setTimeout(updateAppsModeBarVisibility, 0);
+      // Si on clique sur l'onglet Applications, afficher toutes les apps
+      if (tab.dataset.category === 'all') {
+        if (appDetailsSection) appDetailsSection.hidden = true;
+        document.body.classList.remove('details-mode');
+        if (appsDiv) appsDiv.hidden = false;
+        state.currentDetailsApp = null;
+        // Affiche toutes les apps
+        if (!Array.isArray(state.allApps) || state.allApps.length === 0) {
+          setAppList([]);
+          showToast('Chargement des applications…');
+          await loadApps();
+        }
+        if (Array.isArray(state.allApps) && state.allApps.length > 0) {
+          setAppList(state.allApps);
+          showToast(`Toutes les applications : ${state.allApps.length}`);
+        } else {
+          showToast('Aucune application trouvée.');
+        }
+        // Désactive le bouton Catégories
+        btnCat.classList.remove('active');
+        catBar.innerHTML = '';
+      }
     });
   });
 });
@@ -1746,17 +1741,12 @@ searchInput?.addEventListener('input', debounce(applySearch, 140));
 async function triggerRefresh() {
   if (!refreshBtn) return;
   if (refreshBtn.classList.contains('loading')) return;
-  // Retrouver dynamiquement le bouton "Tout" et déclencher son clic
-  const btnTout = Array.from(document.querySelectorAll('.apps-mode-btn')).find(b => b.textContent.trim() === 'Tout');
-  if (btnTout && typeof btnTout.click === 'function') btnTout.click();
-
   // Rafraîchir le cache des catégories comme au démarrage
   if (typeof categoriesCache !== 'undefined') categoriesCache = null;
   if (typeof loadCategories === 'function') await loadCategories();
-  // D'abord, basculer sur la vue "Tout"
-  if (typeof btnAll !== 'undefined' && btnAll && typeof btnAll.click === 'function') {
-    btnAll.click();
-  }
+  // Bascule sur l'onglet Applications (remplace btnAll)
+  const tabApplications = document.querySelector('.tab[data-category="all"]');
+  if (tabApplications) tabApplications.click();
   showToast(t('toast.refreshing'));
   refreshBtn.classList.add('loading');
   try {
