@@ -640,39 +640,6 @@ let lightboxState = { images: [], index: 0, originApp: null };
 // Cache descriptions (réinstallé)
 // --- Test catégorie dynamique ---
 window.addEventListener('DOMContentLoaded', async () => {
-  // Bouton "Tout"
-  const btnAll = document.createElement('button');
-  btnAll.textContent = 'Tout';
-  btnAll.className = 'apps-mode-btn active';
-  let isLoadingApps = false;
-  btnAll.onclick = async () => {
-    // Fermer la vue détaillée si ouverte
-    if (appDetailsSection) appDetailsSection.hidden = true;
-    document.body.classList.remove('details-mode');
-    if (appsDiv) appsDiv.hidden = false;
-    state.currentDetailsApp = null;
-    btnAll.classList.add('active');
-    btnCat.classList.remove('active');
-    catBar.innerHTML = '';
-    if (!Array.isArray(state.allApps) || (state.allApps.length === 0 && !isLoadingApps)) {
-      isLoadingApps = true;
-      setAppList([]);
-      showToast('Chargement des applications…');
-      await loadApps();
-      isLoadingApps = false;
-    }
-    if (Array.isArray(state.allApps) && state.allApps.length > 0) {
-      setAppList(state.allApps);
-      showToast(`Toutes les applications : ${state.allApps.length}`);
-    } else {
-      showToast('Aucune application trouvée.');
-    }
-  };
-  appsModeBar.appendChild(btnAll);
-  // Par défaut, affiche tout
-  btnAll.click();
-  btnCat.classList.add('active');
-  btnAll.classList.remove('active');
   const appsModeBar = document.getElementById('appsModeBar');
   function updateAppsModeBarVisibility() {
     // Afficher seulement pour l’onglet "all" (Applications)
@@ -716,7 +683,35 @@ window.addEventListener('DOMContentLoaded', async () => {
       showToast('Aucune application trouvée.');
     }
   };
-  // (Suppression du bouton "Tout")
+  // Bouton "Catégories"
+  let categoriesCache = null;
+  const btnCat = document.createElement('button');
+  btnCat.textContent = 'Catégories';
+  btnCat.className = 'apps-mode-btn';
+  async function loadCategories() {
+    if (categoriesCache) return categoriesCache;
+    // Essayer de lire le cache local d'abord
+    try {
+      const cacheRes = await window.electronAPI.getCategoriesCache();
+      if (cacheRes.ok && Array.isArray(cacheRes.categories) && cacheRes.categories.length > 0) {
+        categoriesCache = cacheRes.categories;
+        return categoriesCache;
+      }
+    } catch(e) {}
+    // Sinon, fallback sur le fetch réseau
+    try {
+      const res = await window.electronAPI.fetchAllCategories();
+      if (!res.ok || !Array.isArray(res.categories)) throw new Error(res.error || 'Erreur catégories');
+      categoriesCache = res.categories;
+      return categoriesCache;
+    } catch(e) {
+      showToast('Erreur catégories: ' + (e.message || e));
+      return [];
+    }
+  }
+  // Charger les catégories au démarrage
+  loadCategories();
+  btnCat.onclick = async () => {
     // Fermer la vue détaillée si ouverte
     if (appDetailsSection) appDetailsSection.hidden = true;
     document.body.classList.remove('details-mode');
@@ -783,7 +778,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   };
   appsModeBar.appendChild(btnAll);
   appsModeBar.appendChild(btnCat);
-  // (Suppression de l'affichage par défaut du bouton "Tout")
+  // Par défaut, affiche tout
+  btnAll.click();
 
   // (Suppression du masquage automatique de catBar sur changement d’onglet)
   updateAppsModeBarVisibility();
@@ -1748,17 +1744,6 @@ appsDiv?.addEventListener('click', (e) => {
 function debounce(fn, delay){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), delay); }; }
 searchInput?.addEventListener('input', debounce(applySearch, 140));
 async function triggerRefresh() {
-  // Retrouver dynamiquement le bouton "Tout" et déclencher son clic
-  const btnTout = Array.from(document.querySelectorAll('.apps-mode-btn')).find(b => b.textContent.trim() === 'Tout');
-  if (btnTout && typeof btnTout.click === 'function') btnTout.click();
-
-  // Rafraîchir le cache des catégories comme au démarrage
-  if (typeof categoriesCache !== 'undefined') categoriesCache = null;
-  if (typeof loadCategories === 'function') await loadCategories();
-  // D'abord, basculer sur la vue "Tout"
-  if (typeof btnAll !== 'undefined' && btnAll && typeof btnAll.click === 'function') {
-    btnAll.click();
-  }
   if (!refreshBtn) return;
   if (refreshBtn.classList.contains('loading')) return;
   // Retrouver dynamiquement le bouton "Tout" et déclencher son clic
