@@ -1,3 +1,22 @@
+// Lightbox ultra-légère pour images Markdown (initialisation après DOM prêt)
+window.addEventListener('DOMContentLoaded', () => {
+  const mdLightbox = document.getElementById('mdLightbox');
+  const mdLightboxImg = document.getElementById('mdLightboxImg');
+  const detailsLong = document.getElementById('detailsLong');
+  if (mdLightbox && mdLightboxImg && detailsLong) {
+    detailsLong.addEventListener('click', e => {
+      const t = e.target;
+      if (t && t.tagName === 'IMG') {
+        mdLightboxImg.src = t.src;
+        mdLightbox.style.display = 'flex';
+      }
+    });
+    mdLightbox.addEventListener('click', () => {
+      mdLightbox.style.display = 'none';
+      mdLightboxImg.src = '';
+    });
+  }
+});
 const loadedIcons = new Set();
 
 
@@ -369,6 +388,7 @@ const detailsUninstallBtn = document.getElementById('detailsUninstallBtn');
 const detailsGallery = document.getElementById('detailsGallery');
 const detailsGalleryInner = document.getElementById('detailsGalleryInner');
 // Éléments streaming installation
+// Galerie supprimée : toutes les images sont dans la description
 const installStream = document.getElementById('installStream');
 const installStreamStatus = document.getElementById('installStreamStatus');
 
@@ -559,6 +579,25 @@ function enqueueInstall(name){
 }
 const toast = document.getElementById('toast');
 const searchInput = document.getElementById('searchInput');
+let searchMode = false;
+let lastSearchValue = '';
+
+if (searchInput) {
+  searchInput.addEventListener('focus', () => {
+    searchMode = true;
+    if (lastSearchValue) searchInput.value = lastSearchValue;
+    // Simuler le clic sur le bouton retour si visible
+    const backBtn = document.getElementById('backToListBtn');
+    if (backBtn && backBtn.offsetParent !== null) backBtn.click();
+    if (state.activeCategory !== 'all') {
+      state.activeCategory = 'all';
+      const tabAll = document.querySelector('.tab[data-category="all"]');
+      if (tabAll && !tabAll.classList.contains('active')) tabAll.click();
+    }
+    setCategoriesDropdownBtnLabel();
+    applySearch();
+  });
+}
 const refreshBtn = document.getElementById('refreshBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsPanel = document.getElementById('settingsPanel');
@@ -639,20 +678,58 @@ let lightboxState = { images: [], index: 0, originApp: null };
 
 // Cache descriptions (réinstallé)
 // --- Test catégorie dynamique ---
+// Toujours forcer le contenu du bouton Catégories (texte + flèche)
+function setCategoriesDropdownBtnLabel() {
+  const categoriesDropdownBtn = document.getElementById('categoriesDropdownBtn');
+  if (categoriesDropdownBtn) {
+    // Détermine la catégorie active
+    let label = t('tabs.categories');
+    let icon = '📦';
+    if (state.activeCategory && state.activeCategory !== 'all') {
+      // Cherche le nom et l’icône de la catégorie sélectionnée
+      const key = state.activeCategory.trim().toLowerCase();
+      const iconMap = {
+        "android": "🤖",
+        "appimages": "📦",
+        "audio": "🎵",
+        "comic": "📚",
+        "command-line": "💻",
+        "communication": "💬",
+        "disk": "🖴",
+        "education": "🎓",
+        "file-manager": "🗂️",
+        "finance": "💰",
+        "game": "🎮",
+        "gnome": "👣",
+        "graphic": "🎨",
+        "internet": "🌐",
+        "kde": "🖥️",
+        "office": "🗎",
+        "password": "🔑",
+        "steam": "🕹️",
+        "system-monitor": "📊",
+        "video": "🎬",
+        "web-app": "🕸️",
+        "web-browser": "🌍",
+        "wine": "🍷",
+        "autre": "❓"
+      };
+      icon = iconMap[key] || "📦";
+      label = state.activeCategory.charAt(0).toUpperCase() + state.activeCategory.slice(1);
+    } else {
+      // Cas "Tout"
+      icon = '🗃️';
+      label = t('categories.all');
+    }
+    categoriesDropdownBtn.innerHTML = `<span class="cat-icon">${icon}</span> <span>${label}</span> <span class="cat-arrow">▼</span>`;
+  }
+}
 window.addEventListener('DOMContentLoaded', async () => {
   // Dropdown menu catégories : ouverture/fermeture
   const categoriesDropdownBtn = document.getElementById('categoriesDropdownBtn');
   const categoriesDropdownMenu = document.getElementById('categoriesDropdownMenu'); // maintenant global, juste après <body>
   const categoriesDropdownOverlay = document.getElementById('categoriesDropdownOverlay');
   const dropdownCategories = document.querySelector('.dropdown-categories');
-  // Toujours forcer le contenu du bouton Catégories (texte + flèche)
-  function setCategoriesDropdownBtnLabel() {
-    if (categoriesDropdownBtn) {
-      // Utilise la traduction dynamique, mais ajoute toujours la flèche
-      const label = t('tabs.categories');
-      categoriesDropdownBtn.innerHTML = `<span data-i18n="tabs.categories">${label}</span> <span class="cat-arrow">▼</span>`;
-    }
-  }
   // Appliquer le label au chargement
   setCategoriesDropdownBtnLabel();
 
@@ -738,21 +815,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   function updateAppsModeBarVisibility() {
     // Affiche ou masque la barre de catégorie sélectionnée uniquement
-    const selectedCategoryBar = document.getElementById('selectedCategoryBar');
-    if (!selectedCategoryBar) return;
-        if (state.activeCategory === 'all') {
-          selectedCategoryBar.style.display = '';
-          selectedCategoryBar.innerHTML = '';
-          // Crée un bouton miroir "Tout" avec le même style
-          const btnAll = document.createElement('button');
-          btnAll.type = 'button';
-          btnAll.className = 'category-btn';
-          btnAll.innerHTML = `<span class="cat-icon">🗃️</span> <span>${t('categories.all')}</span>`;
-          btnAll.disabled = true;
-          selectedCategoryBar.appendChild(btnAll);
-        } else {
-          selectedCategoryBar.style.display = 'none';
-        }
+    // Barre supprimée : plus d’action
+    setCategoriesDropdownBtnLabel();
   }
   // Bouton "Tout"
   // Logique Catégories migrée sur l'onglet secondaire
@@ -800,11 +864,8 @@ window.addEventListener('DOMContentLoaded', async () => {
           document.body.classList.remove('details-mode');
           if (appsDiv) appsDiv.hidden = false;
           state.currentDetailsApp = null;
-          const selectedCategoryBar = document.getElementById('selectedCategoryBar');
-          if (selectedCategoryBar) {
-            selectedCategoryBar.innerHTML = '';
-            selectedCategoryBar.appendChild(btn.cloneNode(true));
-          }
+          state.activeCategory = name;
+          setCategoriesDropdownBtnLabel();
           const filteredApps = Array.isArray(apps) ? apps.filter(a => typeof a === 'string' && a.length > 0) : [];
           const detailedApps = filteredApps.map(appName => {
             const found = Array.isArray(state.allApps) ? state.allApps.find(x => x && x.name === appName) : null;
@@ -840,11 +901,8 @@ window.addEventListener('DOMContentLoaded', async () => {
           document.body.classList.remove('details-mode');
           if (appsDiv) appsDiv.hidden = false;
           state.currentDetailsApp = null;
-          const selectedCategoryBar = document.getElementById('selectedCategoryBar');
-          if (selectedCategoryBar) {
-            selectedCategoryBar.innerHTML = '';
-            selectedCategoryBar.appendChild(btnOther.cloneNode(true));
-          }
+          state.activeCategory = 'autre';
+          setCategoriesDropdownBtnLabel();
           setAppList(uncategorizedApps);
           showToast(`Autres applications : ${uncategorizedApps.length}`);
         };
@@ -901,8 +959,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (appsDiv) appsDiv.hidden = false;
         state.currentDetailsApp = null;
         // Masque le nom de la catégorie sélectionnée
-        const selectedCategoryBar = document.getElementById('selectedCategoryBar');
-        if (selectedCategoryBar) selectedCategoryBar.innerHTML = '';
+  // Suppression de la barre : rien à faire
         // Affiche toutes les apps
         if (!Array.isArray(state.allApps) || state.allApps.length === 0) {
           setAppList([]);
@@ -1315,7 +1372,18 @@ function applyTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (translations[lang] && translations[lang][key]) {
-      el.textContent = translations[lang][key];
+      // Si l'élément contient des balises (ex: <span class="mode-icon">), ne remplacer que le nœud texte principal
+      let replaced = false;
+      el.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && !replaced) {
+          node.textContent = translations[lang][key];
+          replaced = true;
+        }
+      });
+      // Si aucun nœud texte trouvé, fallback sur textContent (cas rare)
+      if (!replaced) {
+        el.textContent = translations[lang][key];
+      }
     }
   });
   // data-i18n-placeholder
@@ -1536,7 +1604,13 @@ document.addEventListener('click', (ev) => {
   if (!a) return;
   const href = a.getAttribute('href');
   if (!href || !/^https?:\/\//i.test(href)) return;
-  if (!loadOpenExternalPref()) return;
+  if (!loadOpenExternalPref()) {
+    // Ouvrir dans une popup simple
+    ev.preventDefault();
+    ev.stopPropagation();
+    window.open(href, '_blank', 'noopener,noreferrer,width=980,height=700');
+    return;
+  }
   ev.preventDefault();
   ev.stopPropagation();
   if (window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
@@ -1687,6 +1761,7 @@ function showDetails(appName) {
   if (detailsName) detailsName.dataset.app = app.name.toLowerCase();
   if (detailsLong) detailsLong.textContent = t('details.loadingDesc', {name: app.name});
   if (detailsGallery) detailsGallery.hidden = true;
+  // Galerie supprimée : rien à cacher
   if (detailsInstallBtn) {
     detailsInstallBtn.hidden = !!app.installed;
     detailsInstallBtn.setAttribute('data-name', app.name);
@@ -1726,8 +1801,7 @@ function showDetails(appName) {
   // Masquer la barre d'onglets catégories et le bouton miroir/tout
   const tabsRowSecondary = document.querySelector('.tabs-row-secondary');
   if (tabsRowSecondary) tabsRowSecondary.style.visibility = 'hidden';
-  const selectedCategoryBar = document.getElementById('selectedCategoryBar');
-  if (selectedCategoryBar) selectedCategoryBar.style.display = 'none';
+  // Suppression de la barre : rien à faire
   document.body.classList.add('details-mode');
   if (appsDiv) appsDiv.hidden = true;
   loadRemoteDescription(app.name).catch(err => {
@@ -1735,15 +1809,14 @@ function showDetails(appName) {
   });
 }
 
-backToListBtn?.addEventListener('click', () => {
+function exitDetailsView() {
   if (appDetailsSection) appDetailsSection.hidden = true;
   document.body.classList.remove('details-mode');
   if (appsDiv) appsDiv.hidden = false;
   // Réaffiche la barre d'onglets catégories et le bouton miroir/tout
   const tabsRowSecondary = document.querySelector('.tabs-row-secondary');
   if (tabsRowSecondary) tabsRowSecondary.style.visibility = 'visible';
-  const selectedCategoryBar = document.getElementById('selectedCategoryBar');
-  if (selectedCategoryBar) selectedCategoryBar.style.display = '';
+  // Suppression de la barre : rien à faire
   // Nettoyer tous les états busy/spinner sur les tuiles
   document.querySelectorAll('.app-tile.busy').forEach(t => t.classList.remove('busy'));
   // Restaurer scroll
@@ -1751,33 +1824,60 @@ backToListBtn?.addEventListener('click', () => {
   if (scroller) scroller.scrollTop = state.lastScrollY || 0;
   // Mémoriser dernier détail pour potentielle restauration
   if (state.currentDetailsApp) sessionStorage.setItem('lastDetailsApp', state.currentDetailsApp);
-});
+}
+
+backToListBtn?.addEventListener('click', exitDetailsView);
 
 function applySearch() {
-  const q = (searchInput?.value || '').toLowerCase().trim();
+  // Gestion du mode recherche :
   let base = state.allApps;
   if (state.activeCategory === 'updates') {
     if (updatesPanel) updatesPanel.hidden = false;
     if (advancedPanel) advancedPanel.hidden = true;
-  setAppList([]);
+    setAppList([]);
     if (appsDiv) appsDiv.innerHTML = '';
     return;
   }
   if (state.activeCategory === 'advanced') {
     if (advancedPanel) advancedPanel.hidden = false;
     if (updatesPanel) updatesPanel.hidden = true;
-  setAppList([]);
+    setAppList([]);
     if (appsDiv) appsDiv.innerHTML = '';
     return;
   }
   if (updatesPanel) updatesPanel.hidden = true;
   if (advancedPanel) advancedPanel.hidden = true;
   if (state.activeCategory === 'installed') {
-    // Show only installed apps that were marked with leading '◆' in the source list
+    // Dès qu'on quitte "Tout", on désactive la recherche
+    if (searchMode) {
+      searchMode = false;
+      lastSearchValue = searchInput?.value || '';
+      if (searchInput) searchInput.blur();
+    }
     base = state.allApps.filter(a => a.installed && (a.hasDiamond === true));
+  } else if (state.activeCategory !== 'all') {
+    // Dès qu'on quitte "Tout", on désactive la recherche
+    if (searchMode) {
+      searchMode = false;
+      lastSearchValue = searchInput?.value || '';
+      if (searchInput) searchInput.blur();
+    }
+    base = state.allApps.filter(app => app.category === state.activeCategory);
   }
-  state.filtered = !q ? base : base.filter(a => a.name.toLowerCase().includes(q));
-  setAppList(state.filtered);
+  let filtered = base;
+  if (searchMode && searchInput && searchInput.value.trim() !== '') {
+    const q = searchInput.value.trim().toLowerCase();
+    const words = q.split(/\s+/).filter(Boolean);
+    filtered = base.filter(app => {
+      const name = (app.name || '').toLowerCase();
+      const desc = (app.desc || '').toLowerCase();
+      // Tous les mots doivent être présents dans name OU desc
+      return words.every(word => name.includes(word) || desc.includes(word));
+    });
+  }
+  state.filtered = filtered;
+  setAppList(filtered);
+  if (typeof refreshAllInstallButtons === 'function') refreshAllInstallButtons();
 }
 
 // Listeners (vue détaillée) pour installation / désinstallation
@@ -1788,7 +1888,13 @@ detailsInstallBtn?.addEventListener('click', async () => {
   if (action === 'cancel-install') {
     if (activeInstallSession.id) {
       try { await window.electronAPI.installCancel(activeInstallSession.id); } catch(_){ }
-  showToast(t('toast.cancelRequested'));
+      showToast(t('toast.cancelRequested'));
+      // Lancer la désinstallation directement après l'annulation
+      try {
+        await window.electronAPI.amAction('uninstall', name);
+        await loadApps();
+        showDetails(name);
+      } catch(_){}
     }
     return;
   }
@@ -1877,8 +1983,14 @@ appsDiv?.addEventListener('click', (e) => {
       });
     } else if (action === 'cancel-install') {
       if (activeInstallSession.id && activeInstallSession.name === appName) {
-        window.electronAPI.installCancel(activeInstallSession.id).then(()=>{
+        window.electronAPI.installCancel(activeInstallSession.id).then(async ()=>{
           showToast(t('toast.cancelRequested'));
+          // Lancer la désinstallation directement après l'annulation
+          try {
+            await window.electronAPI.amAction('uninstall', appName);
+            await loadApps();
+            applySearch();
+          } catch(_){}
         });
       }
       return;
@@ -1933,11 +2045,7 @@ window.addEventListener('keydown', (e) => {
   // Escape: fermer détails ou lightbox / menu modes / paramètres
   if (e.key === 'Escape') {
     if (lightbox && !lightbox.hidden) { closeLightbox(); return; }
-    if (document.body.classList.contains('details-mode')) {
-      if (appDetailsSection) appDetailsSection.hidden = true;
-      document.body.classList.remove('details-mode');
-      if (appsDiv) appsDiv.hidden = false; return;
-    }
+    if (document.body.classList.contains('details-mode')) { exitDetailsView(); return; }
     if (!modeMenu?.hidden){ modeMenu.hidden = true; modeMenuBtn?.setAttribute('aria-expanded','false'); return; }
     if (!settingsPanel?.hidden){ settingsPanel.hidden = true; settingsBtn?.setAttribute('aria-expanded','false'); return; }
   }
@@ -2082,9 +2190,7 @@ tabs.forEach(tab => {
     }
     // Pas de terminal dans le mode avancé désormais
     if (document.body.classList.contains('details-mode')) {
-      document.body.classList.remove('details-mode');
-      if (appDetailsSection) appDetailsSection.hidden = true;
-      if (appsDiv) appsDiv.hidden = false;
+      exitDetailsView();
     }
   });
 });
@@ -2248,8 +2354,6 @@ rawSaveBtn?.addEventListener('click', () => {
 });
 
 // ...existing code...
-
-// ...existing code...
 async function loadRemoteDescription(appName) {
   // Si dans le cache (<24h) on réutilise
   const cached = descriptionCache.get(appName);
@@ -2257,40 +2361,33 @@ async function loadRemoteDescription(appName) {
     applyDescription(appName, cached);
     return;
   }
-  const url = `https://portable-linux-apps.github.io/apps/${encodeURIComponent(appName)}.html`;
-  let html;
+  const url = `https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/apps/${encodeURIComponent(appName)}.md`;
+  let markdown;
   try {
     const resp = await fetch(url, { method: 'GET' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    html = await resp.text();
+    markdown = await resp.text();
   } catch (e) {
     throw new Error('Échec fetch: ' + (e.message || e));
   }
-  // Extraction simple: balise meta og:description ou premier <p> significatif
+  // Parser le Markdown en HTML avec marked
   let shortDesc = '';
   let longDesc = '';
   try {
-    // Parser léger sans DOMParser (sandbox renderer déjà dispo, mais DOMParser natif possible)
-    // Utilisons DOMParser pour plus de robustesse
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const og = doc.querySelector('meta[property="og:description"]');
-    if (og && og.getAttribute('content')) shortDesc = og.getAttribute('content').trim();
-    // Fallback : premier paragraphe significatif
-    if (!shortDesc) {
-      const firstP = Array.from(doc.querySelectorAll('p')).find(p => p.textContent && p.textContent.trim().length > 40);
-      if (firstP) shortDesc = firstP.textContent.trim().split(/\n/)[0];
-    }
-    const paragraphs = Array.from(doc.querySelectorAll('p')).map(p => p.textContent.trim()).filter(t => t.length > 0);
-    longDesc = paragraphs.slice(0, 6).join('\n\n');
-    if (longDesc.length > 1200) longDesc = longDesc.slice(0, 1170) + '…';
+  if (!window.marked) throw new Error('marked non chargé');
+  // Couper le markdown à la première ligne de tableau (| ...)
+  let md = markdown;
+  const lines = md.split(/\r?\n/);
+  const tableIdx = lines.findIndex(l => /^\s*\|/.test(l));
+  if (tableIdx !== -1) md = lines.slice(0, tableIdx).join('\n');
+  longDesc = window.marked.parse(md);
+  // Pour le shortDesc, on prend la première ligne non vide (hors titre)
+  const descLines = md.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  shortDesc = descLines[0] || 'Description non fournie.';
   } catch (e) {
-    shortDesc = shortDesc || 'Description indisponible.';
-    longDesc = longDesc || 'Impossible de parser la page distante.';
+    shortDesc = 'Description indisponible.';
+    longDesc = 'Impossible de parser le markdown.';
   }
-  if (!shortDesc) shortDesc = 'Description non fournie.';
-  if (!longDesc) longDesc = shortDesc;
-  // Extraction des images potentielles (captures)
   let images = [];
   try {
     const parser2 = new DOMParser();
@@ -2330,7 +2427,7 @@ function applyDescription(appName, record) {
   if (!detailsName) return;
   const refName = (detailsName.dataset.app || detailsName.textContent.toLowerCase().replace(/\s+✓$/, ''));
   if (refName !== appName.toLowerCase()) return;
-  if (detailsLong) detailsLong.innerHTML = linkifyDescription(record.long);
+  if (detailsLong) detailsLong.innerHTML = record.long;
   if (detailsGalleryInner && detailsGallery) {
     detailsGalleryInner.innerHTML = '';
     if (record.images && record.images.length) {
@@ -2343,6 +2440,8 @@ function applyDescription(appName, record) {
       });
       detailsGallery.hidden = false;
     } else { detailsGallery.hidden = true; }
+  // Galerie supprimée : toutes les images sont dans la description Markdown
+// Lightbox supprimé
   }
 }
 
@@ -2404,6 +2503,7 @@ lightboxNext?.addEventListener('click', () => {
 lightboxClose?.addEventListener('click', () => closeLightbox());
 lightbox?.addEventListener('click', (e) => {
   if (e.target === lightbox) closeLightbox();
+// Lightbox supprimé : plus de galerie séparée
 });
 
 

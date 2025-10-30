@@ -1,3 +1,19 @@
+.details-long img {
+  cursor: pointer;
+}
+/* Rendre toutes les images Markdown responsives dans la description détaillée */
+.details-long img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 16px auto;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+/* Centrage spécifique pour certains éléments */
+.centered {
+  text-align: center;
+}
 /* Overlay flou/assombri pour menu catégories */
 .dropdown-overlay {
   position: fixed;
@@ -24,30 +40,7 @@
 /* Barre affichant la catégorie sélectionnée au-dessus des tuiles */
 #selectedCategoryBar {
   text-align: center;
-  margin-bottom: 28px;
-  margin-top: 0;
-  padding-left: 0;
-  z-index: 120;
-  position: relative;
-}
-
-#selectedCategoryBar .category-btn {
-  max-width: 280px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--card) !important;
-  border: 1px solid var(--border);
-  pointer-events: none;
-  cursor: default;
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
-  line-height: 40px;
-}
-
-.category-btn {
+  margin-bottom: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -241,8 +234,8 @@
    max-width: 1200px;
    width: 100%;
    box-sizing: border-box;
-   left: 50%;
-   transform: translateX(-50%);
+  margin-left: auto;
+  margin-right: auto;
    /* S'aligne et s'adapte à la largeur de .content */
 }
 .multi-choice-table td {
@@ -252,6 +245,7 @@
 .choice-dialog {
   max-height: 80vh;
   overflow-y: auto;
+  overflow-x: auto; /* Ajout scroll horizontal si trop large */
 }
 /* Liste de choix pour installation multiple */
 .multi-choice-list {
@@ -540,8 +534,14 @@ body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
 }
 
 /* Nouvelle liste GNOME-like */
-.app-list { display:grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
-.app-tile { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; display:flex; gap:12px; cursor:pointer; align-items:flex-start; box-shadow:var(--shadow); transition:background .15s,border-color .15s; }
+.app-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  grid-auto-rows: auto;
+  align-items: start;
+}
+.app-tile { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; display:flex; gap:12px; cursor:pointer; align-items:flex-start; box-shadow:var(--shadow); transition:background .15s,border-color .15s; height:auto; min-height:0; max-height:none; }
 .app-tile.busy { opacity:.55; }
 .app-tile.busy .inline-action.install { opacity:1; }
 .app-tile.busy .inline-action.uninstall { opacity:1; }
@@ -731,17 +731,6 @@ body.view-cards .app-tile .tile-short { font-size:13px; max-height:4.1em; overfl
 .install-stream-log::-webkit-scrollbar-track { background:transparent; }
 .details-section-title { margin:0 0 8px; font-size:15px; }
 /* (supprimé doublon .details-long) */
-.details-gallery-title { margin:20px 0 10px; font-size:15px; }
-
-/* Galerie d'images intégrée aux descriptions */
-.details-gallery { margin-top:12px; }
-.gallery-row { display:flex; flex-wrap:wrap; gap:10px; }
-.gallery-row .shot { position:relative; background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; width:200px; height:120px; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); }
-.gallery-row .shot img { width:100%; height:100%; object-fit:cover; display:block; }
-.gallery-row .shot::after { content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); pointer-events:none; }
-@media (prefers-color-scheme: dark) {
-  .gallery-row .shot::after { box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
-}
 
 /* Spinner universel pour tous les éléments */
 .btn.loading { position:relative; }
@@ -817,7 +806,7 @@ body.details-mode #appDetails { opacity:1; transform:translateY(0); }
 .panel-lite { max-width: 1000px; margin: 16px auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
 /* Panels (updates / advanced) utility classes */
 .panel-heading-xl { margin:0 0 14px; font-size:19px; font-weight:600; letter-spacing:.3px; }
-.panel-heading-sm { margin:0 0 10px; font-size:16px; font-weight:600; }
+.panel-heading-sm { margin:0 0 30px; font-size:16px; font-weight:600; }
 .updates-panel .updates-run { margin-bottom:8px; }
 .update-result { margin-top:14px; }
 .update-final-message { font-size:13px; font-weight:500; color:var(--primary); }

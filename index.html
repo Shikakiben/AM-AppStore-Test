@@ -8,9 +8,13 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%233584e4'/%3E%3C/svg%3E">
   <meta name="color-scheme" content="light dark" />
   <!-- Mise à jour CSP: autoriser les requêtes (fetch) vers portable-linux-apps.github.io pour récupérer les descriptions -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' appicon: https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://portable-linux-apps.github.io;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' appicon: https: data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://portable-linux-apps.github.io https://raw.githubusercontent.com;">
 </head>
 <body>
+  <!-- Lightbox ultra-légère pour images Markdown -->
+  <div id="mdLightbox" style="display:none;position:fixed;z-index:9999;inset:0;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+    <img id="mdLightboxImg" src="" alt="Image grand format" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 4px 30px rgba(0,0,0,.4);background:#111;" />
+  </div>
   <div class="dropdown-overlay" id="categoriesDropdownOverlay" hidden></div>
   <div class="dropdown-menu-categories" id="categoriesDropdownMenu" role="menu" aria-labelledby="categoriesDropdownBtn" hidden></div>
   <header class="app-header" data-tauri-drag-region>
@@ -79,10 +83,10 @@
         <button id="refreshBtn" class="btn btn-outline btn-refresh" title="Rafraîchir la liste" aria-label="Rafraîchir" data-i18n-title="refresh.title" data-i18n-aria-label="refresh.aria"><span class="icon" aria-hidden="true">↻</span></button>
         <button id="modeMenuBtn" class="btn btn-outline" aria-haspopup="true" aria-expanded="false" aria-controls="modeMenu" title="Changer de mode d'affichage" data-i18n-title="modeMenu.title">▦</button>
         <div id="modeMenu" class="mode-menu" role="menu" hidden>
-          <button class="mode-option" data-mode="grid" role="menuitem" aria-pressed="true" data-i18n="modeMenu.grid">▦ Grille</button>
-          <button class="mode-option" data-mode="list" role="menuitem" aria-pressed="false" data-i18n="modeMenu.list">≣ Liste</button>
-          <button class="mode-option" data-mode="icons" role="menuitem" aria-pressed="false" data-i18n="modeMenu.icons">◻︎ Icônes</button>
-          <button class="mode-option" data-mode="cards" role="menuitem" aria-pressed="false" data-i18n="modeMenu.cards">🂠 Cartes</button>
+          <button class="mode-option" data-mode="grid" role="menuitem" aria-pressed="true" data-i18n="modeMenu.grid"><span class="mode-icon" aria-hidden="true">▦</span> Grille</button>
+          <button class="mode-option" data-mode="list" role="menuitem" aria-pressed="false" data-i18n="modeMenu.list"><span class="mode-icon" aria-hidden="true">≣</span> Liste</button>
+          <button class="mode-option" data-mode="icons" role="menuitem" aria-pressed="false" data-i18n="modeMenu.icons"><span class="mode-icon" aria-hidden="true">◻︎</span> Icônes</button>
+          <button class="mode-option" data-mode="cards" role="menuitem" aria-pressed="false" data-i18n="modeMenu.cards"><span class="mode-icon" aria-hidden="true">🂠</span> Cartes</button>
         </div>
       </div>
     </div>
@@ -113,7 +117,7 @@
         </div>
       </section>
       <section id="advancedPanel" class="panel-lite advanced-panel" hidden>
-    <h2 class="panel-heading-sm" data-i18n="advanced.title">Mode avancé</h2>
+  <h2 class="panel-heading-sm centered" data-i18n="advanced.title">Mode avancé</h2>
     <p class="placeholder-strong"><span data-i18n="advanced.waiting">Fonctions avancées encore non disponibles dans l’UI — utilisez le terminal : am -h pour la liste complète des commandes.</span></p>
 
     <ul class="commands condensed" aria-label="Commandes AM">
@@ -135,7 +139,6 @@
       </section>
 
   
-  <div id="selectedCategoryBar" style="text-align:center;"></div>
   <div id="apps" class="app-list" aria-live="polite" aria-busy="true"></div>
       <section id="appDetails" class="app-details" hidden>
     <button id="backToListBtn" class="btn btn-outline back-btn" data-i18n="details.back">← Retour</button>
@@ -168,26 +171,13 @@
           <h3 class="details-section-title" data-i18n="details.desc">Description</h3>
           <p id="detailsLong" class="details-long"></p>
         </div>
-        <div id="detailsGallery" class="details-gallery" hidden>
-          <h3 class="details-gallery-title" data-i18n="details.captures">Captures</h3>
-          <div id="detailsGalleryInner" class="gallery-row"></div>
-        </div>
+        <!-- Galerie supprimée : toutes les images sont dans la description -->
       </section>
     </main>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </div>
 
-  <!-- Lightbox pour les captures -->
-  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Aperçu de la capture" hidden>
-  <button id="lightboxClose" class="lightbox-close" aria-label="Fermer" data-i18n-aria-label="lightbox.close">✕</button>
-  <button id="lightboxPrev" class="lightbox-nav prev" aria-label="Précédente" data-i18n-aria-label="lightbox.prev">‹</button>
-    <figure class="lightbox-figure">
-      <img id="lightboxImage" alt="Capture" />
-      <figcaption id="lightboxCaption" class="lightbox-caption"></figcaption>
-    </figure>
-    <button id="lightboxNext" class="lightbox-nav next" aria-label="Suivante">›</button>
-  <button id="lightboxNext" class="lightbox-nav next" aria-label="Suivante" data-i18n-aria-label="lightbox.next">›</button>
-  </div>
+  <!-- Lightbox supprimé : plus de galerie séparée -->
 
   <!-- Modale sortie brute mises à jour -->
   <div id="rawUpdateModal" class="modal" role="dialog" aria-modal="true" aria-label="Sortie de la mise à jour" hidden>
@@ -221,6 +211,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="renderer.js"></script>
   <!-- Modale choix installation multiple -->
   <div id="multiChoiceModal" class="modal" role="dialog" aria-modal="true" aria-label="Choix d'installation" hidden>

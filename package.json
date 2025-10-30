@@ -12,6 +12,7 @@
   "dependencies": {
     "@electron/rebuild": "^4.0.1",
     "@xterm/xterm": "^5.5.0",
+    "marked": "^16.4.1",
     "node-pty": "^1.0.0",
     "svgo": "^4.0.0",
     "undici": "^5.29.0",
