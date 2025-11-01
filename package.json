@@ -7,7 +7,7 @@
     "download-icons": "node scripts/download-icons.js --limit=500 --concurrency=8"
   },
   "devDependencies": {
-    "electron": "^22.3.27"
+    "electron": "^35.7.5"
   },
   "dependencies": {
     "@electron/rebuild": "^4.0.1",
@@ -15,8 +15,7 @@
     "marked": "^16.4.1",
     "node-pty": "^1.0.0",
     "svgo": "^4.0.0",
-    "undici": "^5.29.0",
-    "xterm": "^5.3.0"
+    "undici": "^7.16.0"
   },
   "engines": {
     "node": ">=20 <23"

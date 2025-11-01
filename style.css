@@ -1,3 +1,61 @@
+/* Squelettes : même base visuelle que .app-tile pour scroll fluide */
+.app-tile-skeleton {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  align-items: flex-start;
+  cursor: default;
+  /* Pas d'animation, pas d'interaction */
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+body.view-list .app-tile-skeleton {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  box-shadow: none;
+  padding: 10px 12px;
+  margin: 0;
+  align-items: center;
+  gap: 14px;
+  min-height: 0;
+}
+
+body.view-icons .app-tile-skeleton {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 18px 10px;
+  min-height: 0;
+}
+
+body.view-cards .app-tile-skeleton {
+  flex-direction: row;
+  align-items: stretch;
+  padding: 18px;
+  border-radius: 18px;
+  position: relative;
+  min-height: 0;
+}
+
+/* Optionnel : squelette visuel (barre grise) */
+.app-tile-skeleton::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 32px;
+  background: var(--border);
+  border-radius: 8px;
+  opacity: 0.18;
+}
 .details-long img {
   cursor: pointer;
 }

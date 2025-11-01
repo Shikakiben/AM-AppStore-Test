@@ -44,26 +44,75 @@ function setAppList(list) {
 function renderVirtualList() {
   if (!appsDiv) return;
   appsDiv.innerHTML = '';
-  const end = Math.min(currentEndVirtual, appListVirtual.length);
-  while (appsDiv.firstChild) appsDiv.removeChild(appsDiv.firstChild);
-  for (let i = 0; i < end; i++) {
-    appsDiv.appendChild(buildTile(appListVirtual[i]));
-  }
-  if (lastTileObserver) lastTileObserver.disconnect();
-  if (end < appListVirtual.length) {
-    const lastTile = appsDiv.querySelector('.app-tile:last-child');
-    if (lastTile) {
-      try {
-        lastTileObserver = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            lastTileObserver.disconnect();
-            currentEndVirtual = Math.min(currentEndVirtual + VISIBLE_COUNT, appListVirtual.length);
-            renderVirtualList();
-          }
-        }, { root: document.querySelector('.scroll-shell'), threshold: 0.1 });
-        lastTileObserver.observe(lastTile);
-      } catch(_) {}
+  const useSkeleton = appListVirtual.length > 50;
+  if (useSkeleton) {
+    // Génère toutes les tuiles squelettes d’un coup
+    // Squelettes ultra-minimaux, adaptatifs selon la vue
+    const viewClass = 'view-' + (state.viewMode || 'grid');
+    for (let i = 0; i < appListVirtual.length; i++) {
+      const skel = document.createElement('div');
+      skel.className = 'app-tile-skeleton ' + viewClass;
+      skel.dataset.index = i;
+      appsDiv.appendChild(skel);
     }
+    // Observer les squelettes visibles et les hydrater
+    if (window.skeletonObserver) window.skeletonObserver.disconnect();
+    window.skeletonObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !entry.target.classList.contains('hydrated')) {
+          const idx = parseInt(entry.target.dataset.index, 10);
+          const realTile = buildTile(appListVirtual[idx]);
+          realTile.classList.add('hydrated');
+          entry.target.replaceWith(realTile);
+          window.skeletonObserver.observe(realTile); // continue à observer la vraie tuile si besoin
+        }
+      });
+    }, { root: document.querySelector('.scroll-shell'), threshold: 0.1 });
+    // Observer les squelettes initialement visibles
+    const tiles = appsDiv.querySelectorAll('.app-tile-skeleton');
+    tiles.forEach(tile => window.skeletonObserver.observe(tile));
+  } else {
+    // Cas classique : moins de 50 apps, on rend tout normalement
+    const end = Math.min(currentEndVirtual, appListVirtual.length);
+    for (let i = 0; i < end; i++) {
+      appsDiv.appendChild(buildTile(appListVirtual[i]));
+    }
+    if (lastTileObserver) lastTileObserver.disconnect();
+    if (end < appListVirtual.length) {
+      // Observer les 3 dernières tuiles pour une meilleure robustesse au scroll rapide
+      const tiles = appsDiv.querySelectorAll('.app-tile');
+      const toObserve = Array.from(tiles).slice(-3); // 3 dernières
+      if (toObserve.length) {
+        try {
+          lastTileObserver = new IntersectionObserver((entries) => {
+            if (entries.some(e => e.isIntersecting)) {
+              lastTileObserver.disconnect();
+              currentEndVirtual = Math.min(currentEndVirtual + VISIBLE_COUNT, appListVirtual.length);
+              renderVirtualList();
+            }
+          }, { root: document.querySelector('.scroll-shell'), threshold: 0.1 });
+          toObserve.forEach(tile => lastTileObserver.observe(tile));
+        } catch(_) {}
+      }
+    }
+    // --- Spacer pour scroll cohérent ---
+    let spacer = appsDiv.querySelector('.app-list-spacer');
+    if (!spacer) {
+      spacer = document.createElement('div');
+      spacer.className = 'app-list-spacer';
+      spacer.style.width = '100%';
+      spacer.style.pointerEvents = 'none';
+      appsDiv.appendChild(spacer);
+    }
+    // Calculer la hauteur moyenne d'une tuile (sur le lot affiché)
+    let tileHeight = 120; // fallback par défaut
+    const firstTile = appsDiv.querySelector('.app-tile');
+    if (firstTile) {
+      tileHeight = firstTile.offsetHeight || tileHeight;
+    }
+    const missing = appListVirtual.length - end;
+    spacer.style.height = (missing > 0 ? (missing * tileHeight) : 0) + 'px';
+    // --- Fin spacer ---
   }
 }
 
@@ -1816,7 +1865,13 @@ function exitDetailsView() {
   // Réaffiche la barre d'onglets catégories et le bouton miroir/tout
   const tabsRowSecondary = document.querySelector('.tabs-row-secondary');
   if (tabsRowSecondary) tabsRowSecondary.style.visibility = 'visible';
-  // Suppression de la barre : rien à faire
+  // Réappliquer le filtre si on était dans l’onglet "Installé"
+  if (state.activeCategory === 'installed') {
+    const filtered = state.allApps.filter(a => a.installed && (a.hasDiamond === true));
+    state.filtered = filtered;
+    setAppList(filtered);
+    if (typeof refreshAllInstallButtons === 'function') refreshAllInstallButtons();
+  }
   // Nettoyer tous les états busy/spinner sur les tuiles
   document.querySelectorAll('.app-tile.busy').forEach(t => t.classList.remove('busy'));
   // Restaurer scroll
@@ -2567,8 +2622,20 @@ if (window.electronAPI.onInstallProgress){
     if (msg.kind === 'line') {
       // --- Extraction du pourcentage de progression depuis le flux ---
       if (msg.raw !== undefined) {
-        // Cherche un motif du type "  6%[>" ou " 99%[" ou "100%["
-        const percentMatch = msg.raw.match(/(\d{1,3})%\[/);
+        console.log('[INSTALL DEBUG] msg.raw:', msg.raw);
+        // Nettoyage robuste de toutes les séquences d'échappement ANSI/OSC (couleurs, curseur, ESC 7/8, etc.)
+        const ansiCleaned = msg.raw
+          // Séquences ESC [ ... (CSI)
+          .replace(/\x1B\[[0-9;?]*[ -/]*[@-~]/g, '')
+          // Séquences ESC ... (OSC, ESC 7, ESC 8, etc.)
+          .replace(/\x1B[][A-Za-z0-9#()*+\-.\/]*|\x1B[7-8]/g, '')
+          // Séquences OSC (Operating System Command)
+          .replace(/\x1B\][^\x07]*(\x07|\x1B\\)/g, '')
+          // Autres caractères de contrôle
+          .replace(/[\x07\x08\x0D\x0A\x1B]/g, '');
+        console.log('[INSTALL DEBUG] ansiCleaned:', ansiCleaned);
+        // Cherche un motif du type "   6%[>" ou " 99%[" ou "100%[" (tolère espaces avant)
+        const percentMatch = ansiCleaned.match(/\s(\d{1,3})%\s*\[/);
         if (percentMatch) {
           let percent = parseInt(percentMatch[1], 10);
           if (!isNaN(percent)) {
@@ -2578,7 +2645,7 @@ if (window.electronAPI.onInstallProgress){
         }
         // Extraction brute du temps restant (formats "eta ...", "ETA ...", "Temps restant ...", "remaining ...")
         let eta = '';
-        let m = msg.raw.match(/(?:ETA|eta|Temps restant|remaining)[\s:]+([^\s][^\r\n]*)/i);
+        let m = ansiCleaned.match(/(?:ETA|eta|Temps restant|remaining)[\s:]+([^\s][^\r\n]*)/i);
         if (m) eta = m[1].trim();
         if (installProgressEtaLabel) installProgressEtaLabel.textContent = eta ? `⏳ ${eta}` : '';
       }
